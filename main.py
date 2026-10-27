@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 import pickle
 from typing import Optional, List, Dict, Any, Tuple
@@ -9,6 +11,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -68,6 +72,13 @@ class TMDBMovieCard(BaseModel):
     vote_average: Optional[float] = None
 
 
+class TMDBMoviePage(BaseModel):
+    page: int
+    total_pages: int
+    total_results: int
+    results: List[TMDBMovieCard]
+
+
 class TMDBMovieDetails(BaseModel):
     tmdb_id: int
     title: str
@@ -89,6 +100,7 @@ class SearchBundleResponse(BaseModel):
     movie_details: TMDBMovieDetails
     tfidf_recommendations: List[TFIDFRecItem]
     genre_recommendations: List[TMDBMovieCard]
+    genre_error: Optional[str] = None
 
 
 # =========================
@@ -113,21 +125,41 @@ async def tmdb_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
     q = dict(params)
     q["api_key"] = TMDB_API_KEY
 
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(f"{TMDB_BASE}{path}", params=q)
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"TMDB request error: {type(e).__name__} | {repr(e)}",
-        )
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(f"{TMDB_BASE}{path}", params=q)
+        except httpx.RequestError as e:
+            if attempt == max_attempts - 1:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"TMDB request error: {type(e).__name__} | {repr(e)}",
+                )
+            await asyncio.sleep(min(0.5 * (2**attempt), 4))
+            continue
 
-    if r.status_code != 200:
+        if r.status_code == 200:
+            return r.json()
+
+        if (r.status_code == 429 or r.status_code >= 500) and attempt < max_attempts - 1:
+            retry_after = r.headers.get("Retry-After")
+            try:
+                delay = (
+                    min(float(retry_after), 4.0)
+                    if retry_after
+                    else min(0.5 * (2**attempt), 4)
+                )
+            except ValueError:
+                delay = min(0.5 * (2**attempt), 4)
+            await asyncio.sleep(delay)
+            continue
+
         raise HTTPException(
             status_code=502, detail=f"TMDB error {r.status_code}: {r.text}"
         )
 
-    return r.json()
+    raise HTTPException(status_code=502, detail="TMDB request failed after retries")
 
 
 async def tmdb_cards_from_results(
@@ -180,6 +212,20 @@ async def tmdb_search_first(query: str) -> Optional[dict]:
     data = await tmdb_search_movies(query=query, page=1)
     results = data.get("results", [])
     return results[0] if results else None
+
+
+async def tmdb_home_feed(category: str, page: int) -> Dict[str, Any]:
+    if category == "trending":
+        return await tmdb_get(
+            "/trending/movie/day", {"language": "en-US", "page": page}
+        )
+
+    if category not in {"popular", "top_rated", "upcoming", "now_playing"}:
+        raise HTTPException(status_code=400, detail="Invalid category")
+
+    return await tmdb_get(
+        f"/movie/{category}", {"language": "en-US", "page": page}
+    )
 
 
 # =========================
@@ -321,6 +367,7 @@ def health():
 async def home(
     category: str = Query("popular"),
     limit: int = Query(24, ge=1, le=50),
+    page: int = Query(1, ge=1, le=500),
 ):
     """
     Home feed for Streamlit (posters).
@@ -329,16 +376,29 @@ async def home(
       - popular, top_rated, upcoming, now_playing  (movie/{category})
     """
     try:
-        if category == "trending":
-            data = await tmdb_get("/trending/movie/day", {"language": "en-US"})
-            return await tmdb_cards_from_results(data.get("results", []), limit=limit)
-
-        if category not in {"popular", "top_rated", "upcoming", "now_playing"}:
-            raise HTTPException(status_code=400, detail="Invalid category")
-
-        data = await tmdb_get(f"/movie/{category}", {"language": "en-US", "page": 1})
+        data = await tmdb_home_feed(category, page)
         return await tmdb_cards_from_results(data.get("results", []), limit=limit)
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Home route failed: {e}")
+
+
+@app.get("/home/paged", response_model=TMDBMoviePage)
+async def home_paged(
+    category: str = Query("popular"),
+    limit: int = Query(20, ge=1, le=50),
+    page: int = Query(1, ge=1, le=500),
+):
+    try:
+        data = await tmdb_home_feed(category, page)
+        return TMDBMoviePage(
+            page=int(data.get("page", page)),
+            total_pages=min(int(data.get("total_pages", 1)), 500),
+            total_results=int(data.get("total_results", 0)),
+            results=await tmdb_cards_from_results(data.get("results", []), limit=limit),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -349,7 +409,7 @@ async def home(
 @app.get("/tmdb/search")
 async def tmdb_search(
     query: str = Query(..., min_length=1),
-    page: int = Query(1, ge=1, le=10),
+    page: int = Query(1, ge=1, le=500),
 ):
     """
     Returns RAW TMDB shape with 'results' list.
@@ -446,31 +506,44 @@ async def search_bundle(
         except Exception:
             recs = []
 
-    for title, score in recs:
-        card = await attach_tmdb_card_by_title(title)
-        tfidf_items.append(TFIDFRecItem(title=title, score=score, tmdb=card))
+    semaphore = asyncio.Semaphore(5)
+
+    async def build_tfidf_item(title: str, score: float) -> TFIDFRecItem:
+        async with semaphore:
+            card = await attach_tmdb_card_by_title(title)
+        return TFIDFRecItem(title=title, score=score, tmdb=card)
+
+    tfidf_items = await asyncio.gather(
+        *(build_tfidf_item(title, score) for title, score in recs)
+    )
 
     # 2) Genre recommendations (TMDB discover by first genre)
     genre_recs: List[TMDBMovieCard] = []
+    genre_error: Optional[str] = None
     if details.genres:
         genre_id = details.genres[0]["id"]
-        discover = await tmdb_get(
-            "/discover/movie",
-            {
-                "with_genres": genre_id,
-                "language": "en-US",
-                "sort_by": "popularity.desc",
-                "page": 1,
-            },
-        )
-        cards = await tmdb_cards_from_results(
-            discover.get("results", []), limit=genre_limit
-        )
-        genre_recs = [c for c in cards if c.tmdb_id != details.tmdb_id]
+        try:
+            discover = await tmdb_get(
+                "/discover/movie",
+                {
+                    "with_genres": genre_id,
+                    "language": "en-US",
+                    "sort_by": "popularity.desc",
+                    "page": 1,
+                },
+            )
+            cards = await tmdb_cards_from_results(
+                discover.get("results", []), limit=genre_limit
+            )
+            genre_recs = [c for c in cards if c.tmdb_id != details.tmdb_id]
+        except HTTPException as exc:
+            logger.warning("Genre recommendations unavailable: %s", exc.detail)
+            genre_error = "Genre recommendations are temporarily unavailable from TMDB."
 
     return SearchBundleResponse(
         query=query,
         movie_details=details,
         tfidf_recommendations=tfidf_items,
         genre_recommendations=genre_recs,
+        genre_error=genre_error,
     )

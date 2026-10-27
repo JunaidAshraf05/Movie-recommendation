@@ -33,6 +33,14 @@ if "view" not in st.session_state:
     st.session_state.view = "home"  # home | details
 if "selected_tmdb_id" not in st.session_state:
     st.session_state.selected_tmdb_id = None
+if "search_page" not in st.session_state:
+    st.session_state.search_page = 1
+if "home_page" not in st.session_state:
+    st.session_state.home_page = 1
+if "last_search_term" not in st.session_state:
+    st.session_state.last_search_term = ""
+if "last_home_category" not in st.session_state:
+    st.session_state.last_home_category = "trending"
 
 qp_view = st.query_params.get("view")
 qp_id = st.query_params.get("id")
@@ -65,15 +73,25 @@ def goto_details(tmdb_id: int):
 # =============================
 # API HELPERS
 # =============================
-@st.cache_data(ttl=30)  # short cache for autocomplete
+@st.cache_data(ttl=30)
+def _api_get_json_cached(path: str, params: dict | None = None):
+    r = requests.get(f"{API_BASE}{path}", params=params, timeout=25)
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail", r.text[:300])
+        except ValueError:
+            detail = r.text[:300]
+        raise requests.HTTPError(f"HTTP {r.status_code}: {detail}", response=r)
+    return r.json()
+
+
 def api_get_json(path: str, params: dict | None = None):
     try:
-        r = requests.get(f"{API_BASE}{path}", params=params, timeout=25)
-        if r.status_code >= 400:
-            return None, f"HTTP {r.status_code}: {r.text[:300]}"
-        return r.json(), None
-    except Exception as e:
+        return _api_get_json_cached(path, params), None
+    except requests.RequestException as e:
         return None, f"Request failed: {e}"
+    except ValueError as e:
+        return None, f"Invalid JSON response: {e}"
 
 
 def poster_grid(cards, cols=6, key_prefix="grid"):
@@ -131,14 +149,12 @@ def to_cards_from_tfidf_items(tfidf_items):
 # 1) raw TMDB: {"results":[{id,title,poster_path,...}]}
 # 2) list cards: [{tmdb_id,title,poster_url,...}]
 # =============================
-def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
+def parse_tmdb_search_to_cards(data, limit: int = 24):
     """
     Returns:
       suggestions: list[(label, tmdb_id)]
       cards: list[{tmdb_id,title,poster_url}]
     """
-    keyword_l = keyword.strip().lower()
-
     # A) If API returns dict with 'results'
     if isinstance(data, dict) and "results" in data:
         raw = data.get("results") or []
@@ -179,11 +195,9 @@ def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
     else:
         return [], []
 
-    # Word-match filtering (contains)
-    matched = [x for x in raw_items if keyword_l in x["title"].lower()]
-
-    # If nothing matched, fallback to raw list (so never blank)
-    final_list = matched if matched else raw_items
+    # TMDB already ranks results for the search query. Keep its full page,
+    # including localized or alternate titles that don't contain the query.
+    final_list = raw_items
 
     # Suggestions = top 10 labels
     suggestions = []
@@ -198,6 +212,34 @@ def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
         for x in final_list[:limit]
     ]
     return suggestions, cards
+
+
+def page_controls(page: int, total_pages: int, state_key: str, key_prefix: str):
+    if total_pages <= 1:
+        return
+
+    previous, status, next_page = st.columns([1, 2, 1])
+    with previous:
+        if st.button(
+            "← Previous",
+            key=f"{key_prefix}_previous",
+            disabled=page <= 1,
+        ):
+            st.session_state[state_key] = page - 1
+            st.rerun()
+    with status:
+        st.markdown(
+            f"<div style='text-align:center'>Page {page} of {total_pages}</div>",
+            unsafe_allow_html=True,
+        )
+    with next_page:
+        if st.button(
+            "Next →",
+            key=f"{key_prefix}_next",
+            disabled=page >= total_pages,
+        ):
+            st.session_state[state_key] = page + 1
+            st.rerun()
 
 
 # =============================
@@ -215,6 +257,9 @@ with st.sidebar:
         ["trending", "popular", "top_rated", "now_playing", "upcoming"],
         index=0,
     )
+    if home_category != st.session_state.last_home_category:
+        st.session_state.home_page = 1
+        st.session_state.last_home_category = home_category
     grid_cols = st.slider("Grid columns", 4, 8, 6)
 
 # =============================
@@ -234,6 +279,10 @@ if st.session_state.view == "home":
     typed = st.text_input(
         "Search by movie title (keyword)", placeholder="Type: avenger, batman, love..."
     )
+    search_term = typed.strip()
+    if search_term != st.session_state.last_search_term:
+        st.session_state.search_page = 1
+        st.session_state.last_search_term = search_term
 
     st.divider()
 
@@ -242,13 +291,16 @@ if st.session_state.view == "home":
         if len(typed.strip()) < 2:
             st.caption("Type at least 2 characters for suggestions.")
         else:
-            data, err = api_get_json("/tmdb/search", params={"query": typed.strip()})
+            data, err = api_get_json(
+                "/tmdb/search",
+                params={"query": search_term, "page": st.session_state.search_page},
+            )
 
             if err or data is None:
                 st.error(f"Search failed: {err}")
             else:
                 suggestions, cards = parse_tmdb_search_to_cards(
-                    data, typed.strip(), limit=24
+                    data, limit=24
                 )
 
                 # Dropdown
@@ -265,6 +317,12 @@ if st.session_state.view == "home":
 
                 st.markdown("### Results")
                 poster_grid(cards, cols=grid_cols, key_prefix="search_results")
+                page_controls(
+                    page=int(data.get("page", st.session_state.search_page)),
+                    total_pages=min(int(data.get("total_pages", 1)), 500),
+                    state_key="search_page",
+                    key_prefix="search_results_paging",
+                )
 
         st.stop()
 
@@ -272,13 +330,24 @@ if st.session_state.view == "home":
     st.markdown(f"### 🏠 Home — {home_category.replace('_',' ').title()}")
 
     home_cards, err = api_get_json(
-        "/home", params={"category": home_category, "limit": 24}
+        "/home/paged",
+        params={
+            "category": home_category,
+            "limit": 20,
+            "page": st.session_state.home_page,
+        },
     )
     if err or not home_cards:
         st.error(f"Home feed failed: {err or 'Unknown error'}")
         st.stop()
 
-    poster_grid(home_cards, cols=grid_cols, key_prefix="home_feed")
+    poster_grid(home_cards.get("results", []), cols=grid_cols, key_prefix="home_feed")
+    page_controls(
+        page=int(home_cards.get("page", st.session_state.home_page)),
+        total_pages=int(home_cards.get("total_pages", 1)),
+        state_key="home_page",
+        key_prefix="home_feed_paging",
+    )
 
 # ==========================================================
 # VIEW: DETAILS
@@ -349,20 +418,60 @@ elif st.session_state.view == "details":
 
         if not err2 and bundle:
             st.markdown("#### 🔎 Similar Movies (TF-IDF)")
-            poster_grid(
-                to_cards_from_tfidf_items(bundle.get("tfidf_recommendations")),
-                cols=grid_cols,
-                key_prefix="details_tfidf",
-            )
+            tfidf_items = bundle.get("tfidf_recommendations", [])
+            tfidf_cards = to_cards_from_tfidf_items(tfidf_items)
+            if tfidf_cards:
+                poster_grid(
+                    tfidf_cards,
+                    cols=grid_cols,
+                    key_prefix="details_tfidf",
+                )
+            unlinked_items = [
+                item
+                for item in tfidf_items
+                if not (item.get("tmdb") or {}).get("tmdb_id")
+            ]
+            if unlinked_items:
+                st.markdown("**Similar titles without poster matches**")
+                for item in unlinked_items:
+                    st.write(
+                        f"- {item.get('title', 'Untitled')} "
+                        f"(score: {item.get('score', 0):.3f})"
+                    )
+            elif not tfidf_items:
+                st.info("No local similar titles were found for this movie.")
 
             st.markdown("#### 🎭 More Like This (Genre)")
-            poster_grid(
-                bundle.get("genre_recommendations", []),
-                cols=grid_cols,
-                key_prefix="details_genre",
-            )
+            genre_recs = bundle.get("genre_recommendations", [])
+            if genre_recs:
+                poster_grid(
+                    genre_recs,
+                    cols=grid_cols,
+                    key_prefix="details_genre",
+                )
+            elif bundle.get("genre_error"):
+                st.warning(bundle["genre_error"])
+            else:
+                st.info("No genre recommendations were found for this movie.")
         else:
-            st.info("Showing Genre recommendations (fallback).")
+            st.warning(
+                "The full recommendation request failed. Showing available "
+                "recommendations separately."
+            )
+            fallback_tfidf, tfidf_err = api_get_json(
+                "/recommend/tfidf", params={"title": title, "top_n": 12}
+            )
+            st.markdown("#### 🔎 Similar Movies (TF-IDF)")
+            if not tfidf_err and fallback_tfidf:
+                for item in fallback_tfidf:
+                    st.write(
+                        f"- {item.get('title', 'Untitled')} "
+                        f"(score: {item.get('score', 0):.3f})"
+                    )
+            elif tfidf_err:
+                st.info(f"TF-IDF recommendations are unavailable: {tfidf_err}")
+
+            st.markdown("#### 🎭 More Like This (Genre)")
             genre_only, err3 = api_get_json(
                 "/recommend/genre", params={"tmdb_id": tmdb_id, "limit": 18}
             )
