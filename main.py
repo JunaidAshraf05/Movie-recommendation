@@ -84,6 +84,7 @@ class TMDBMovieDetails(BaseModel):
     title: str
     overview: Optional[str] = None
     release_date: Optional[str] = None
+    vote_average: Optional[float] = None
     poster_url: Optional[str] = None
     backdrop_url: Optional[str] = None
     genres: List[dict] = []
@@ -186,6 +187,7 @@ async def tmdb_movie_details(movie_id: int) -> TMDBMovieDetails:
         title=data.get("title") or "",
         overview=data.get("overview"),
         release_date=data.get("release_date"),
+        vote_average=data.get("vote_average"),
         poster_url=make_img_url(data.get("poster_path")),
         backdrop_url=make_img_url(data.get("backdrop_path")),
         genres=data.get("genres", []) or [],
