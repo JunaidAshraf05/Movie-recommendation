@@ -20,36 +20,43 @@ if "dark_mode" not in st.session_state:
 
 theme = (
     {
-        "background": "#12151C",
-        "surface": "#1C1F29",
-        "surface_elevated": "#2B2F3D",
-        "text": "#F9FAFB",
-        "text_secondary": "#E3E5EB",
-        "muted": "#8B92A2",
-        "border": "rgba(227, 229, 235, 0.12)",
-        "accent": "#E86360",
-        "accent_hover": "#F07874",
-        "input": "#1C1F29",
-        "shadow": "0 16px 40px rgba(0, 0, 0, 0.24)",
+        "background": "#000000",
+        "surface": "rgba(28, 28, 30, 0.72)",
+        "surface_elevated": "#2C2C2E",
+        "text": "#F5F5F7",
+        "text_secondary": "rgba(245, 245, 247, 0.92)",
+        "muted": "rgba(235, 235, 245, 0.48)",
+        "border": "rgba(255, 255, 255, 0.08)",
+        "accent": "#0A84FF",
+        "accent_hover": "#409CFF",
+        "input": "rgba(118, 118, 128, 0.24)",
+        "shadow": "0 18px 48px rgba(0, 0, 0, 0.45)",
+        "wash": "rgba(10, 132, 255, 0.16)",
+        "wash2": "rgba(255, 55, 95, 0.10)",
     }
     if st.session_state.dark_mode
     else {
-        "background": "#F3F4F6",
-        "surface": "#FFFFFF",
-        "surface_elevated": "#E9EBF0",
-        "text": "#111318",
-        "text_secondary": "#1C1F29",
-        "muted": "#6C7283",
-        "border": "rgba(28, 31, 41, 0.12)",
-        "accent": "#E2504C",
-        "accent_hover": "#C9403C",
-        "input": "#FFFFFF",
-        "shadow": "0 16px 40px rgba(17, 19, 24, 0.08)",
+        "background": "#F2F2F7",
+        "surface": "rgba(255, 255, 255, 0.82)",
+        "surface_elevated": "#E5E5EA",
+        "text": "#1C1C1E",
+        "text_secondary": "rgba(28, 28, 30, 0.88)",
+        "muted": "rgba(60, 60, 67, 0.48)",
+        "border": "rgba(60, 60, 67, 0.12)",
+        "accent": "#007AFF",
+        "accent_hover": "#0A84FF",
+        "input": "rgba(118, 118, 128, 0.12)",
+        "shadow": "0 16px 40px rgba(15, 15, 18, 0.08)",
+        "wash": "rgba(0, 122, 255, 0.10)",
+        "wash2": "rgba(255, 45, 85, 0.06)",
     }
 )
 
 st.markdown(
     f"""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {{
   color-scheme: {"dark" if st.session_state.dark_mode else "light"};
@@ -64,112 +71,280 @@ st.markdown(
   --accent-hover: {theme["accent_hover"]};
   --input-bg: {theme["input"]};
   --card-shadow: {theme["shadow"]};
-  --rating: #F4B942;
+  --rating: #FFD60A;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }}
-.stApp {{
+html, body, .stApp {{
   background: var(--app-bg);
   color: var(--text-primary);
-  transition: background-color 220ms ease, color 220ms ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }}
-.stApp, button, input, textarea, [data-testid="stSelectbox"] {{
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+.stApp {{
+  background:
+    radial-gradient(1100px 520px at 8% -12%, {theme["wash"]}, transparent 55%),
+    radial-gradient(900px 480px at 100% -8%, {theme["wash2"]}, transparent 50%),
+    var(--app-bg);
+  color: var(--text-primary);
+  transition: background-color 280ms var(--ease), color 280ms var(--ease);
 }}
-.block-container {{ padding: 1.5rem 2rem 3rem; max-width: 1280px; }}
-[data-testid="stAppViewContainer"] {{ background: var(--app-bg); }}
+.stApp, button, input, textarea, [data-testid="stSelectbox"], [data-testid="stMarkdownContainer"] {{
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+}}
+.block-container {{
+  padding: 1.15rem 1.6rem 4rem;
+  max-width: 1180px;
+  animation: rise-in 520ms var(--ease);
+}}
+@keyframes rise-in {{
+  from {{ opacity: 0; transform: translateY(10px); }}
+  to {{ opacity: 1; transform: translateY(0); }}
+}}
+[data-testid="stAppViewContainer"] {{ background: transparent; }}
 [data-testid="stHeader"] {{ background: transparent; }}
-[data-testid="stSidebar"] {{ background: var(--surface); border-right: 1px solid var(--border-subtle); }}
+#MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {{
+  display: none !important;
+}}
+[data-testid="stSidebar"] {{
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  border-right: 1px solid var(--border-subtle);
+}}
 [data-testid="stSidebar"] * {{ color: var(--text-primary); }}
 h1, h2, h3, p, label {{ color: var(--text-primary); }}
-h1, h2, h3 {{ letter-spacing: -0.035em; }}
+h1, h2, h3 {{ letter-spacing: -0.045em; font-weight: 700; }}
 .stCaption, [data-testid="stCaptionContainer"] {{ color: var(--text-muted); }}
 .small-muted {{ color: var(--text-muted); font-size: 0.92rem; }}
-.app-toolbar {{ display: flex; align-items: center; gap: 0.8rem; min-height: 3.2rem; }}
+.app-toolbar {{ display: flex; align-items: center; gap: 0.8rem; min-height: 2.8rem; }}
 .brand-mark {{
-  display: inline-grid; place-items: center; width: 2.45rem; height: 2.45rem;
-  margin-right: 0.55rem; border-radius: 0.85rem; background: var(--accent);
-  color: white; font-size: 1.2rem; vertical-align: middle;
+  display: inline-grid; place-items: center; width: 2.35rem; height: 2.35rem;
+  margin-right: 0.55rem; border-radius: 0.82rem;
+  background: linear-gradient(180deg, #FF6B6B, #FF375F);
+  color: white; font-size: 1.1rem; vertical-align: middle;
+  box-shadow: 0 8px 20px rgba(255, 55, 95, 0.28);
 }}
-.brand-name {{ font-size: 1.2rem; font-weight: 750; letter-spacing: -0.035em; }}
-.brand-caption {{ display: block; margin-left: 3.1rem; color: var(--text-muted); font-size: 0.78rem; }}
+.brand-name {{ font-size: 1.18rem; font-weight: 750; letter-spacing: -0.04em; }}
+.brand-caption {{ display: block; margin-left: 3rem; color: var(--text-muted); font-size: 0.76rem; }}
 [data-testid="stTextInput"] input {{
-  background: var(--input-bg); color: var(--text-primary);
-  border: 1px solid var(--border-subtle); border-radius: 0.85rem; min-height: 3rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  min-height: 3.15rem;
+  padding-left: 1.1rem !important;
+  font-size: 1rem !important;
+  transition: background-color 180ms var(--ease), box-shadow 180ms var(--ease);
 }}
 [data-testid="stTextInput"] input:focus {{
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent) !important;
 }}
 [data-testid="stSelectbox"] > div > div {{
-  background: var(--input-bg); color: var(--text-primary);
-  border-color: var(--border-subtle); border-radius: 0.75rem;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-color: transparent;
+  border-radius: 0.9rem;
 }}
 button[kind="secondary"], button[kind="primary"] {{
-  border-radius: 0.75rem !important;
-  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  border-radius: 999px !important;
+  min-height: 2.55rem;
+  font-weight: 600 !important;
+  transition: transform 220ms var(--ease), background-color 220ms var(--ease), border-color 220ms var(--ease);
 }}
 button[kind="secondary"] {{
-  background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-subtle);
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border: 0 !important;
 }}
 button[kind="secondary"]:hover {{
-  border-color: var(--accent); color: var(--accent); transform: translateY(-1px);
+  background: var(--surface-elevated) !important;
+  transform: translateY(-1px) scale(1.01);
 }}
-button[kind="primary"] {{ background: var(--accent); border-color: var(--accent); }}
-button[kind="primary"]:hover {{ background: var(--accent-hover); border-color: var(--accent-hover); }}
+button[kind="primary"] {{ background: var(--accent) !important; border-color: var(--accent) !important; }}
+button[kind="primary"]:hover {{ background: var(--accent-hover) !important; }}
 [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: var(--surface); border-color: var(--border-subtle) !important;
-  border-radius: 1rem !important; box-shadow: var(--card-shadow); overflow: hidden;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  background: var(--surface) !important;
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  overflow: hidden;
 }}
-[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-subtle)) !important;
-  box-shadow: var(--card-shadow);
+[data-testid="stImage"] img {{ border-radius: 1rem; }}
+[data-testid="stAlert"] {{
+  border-radius: 1.1rem;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-subtle) !important;
 }}
-[data-testid="stImage"] img {{ border-radius: 0.7rem; }}
-.movie-card-meta {{
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 0.35rem; min-height: 3.25rem; padding: 0.45rem 0.05rem 0.1rem;
+.section-heading {{
+  margin: 1.7rem 0 0.35rem;
+  font-size: 1.55rem;
+}}
+.section-kicker {{
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}}
+.hero-copy {{ margin: 0.35rem 0 1rem; }}
+.pagination-status {{
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 0.55rem;
+  font-size: 0.88rem;
+}}
+.poster-grid {{
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 1.05rem 0.85rem;
+}}
+.poster-rail {{
+  display: flex;
+  gap: 0.9rem;
+  overflow-x: auto;
+  padding: 0.2rem 0.15rem 1.1rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}}
+.poster-rail::-webkit-scrollbar {{ display: none; }}
+.poster-card {{
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+  scroll-snap-align: start;
+  transition: transform 320ms var(--ease);
+}}
+.poster-rail .poster-card {{
+  flex: 0 0 158px;
+}}
+.poster-card:hover {{ transform: translateY(-6px) scale(1.03); }}
+.poster-card:active {{ transform: scale(0.98); }}
+.poster-art {{
+  position: relative;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--surface-elevated);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+}}
+.poster-art img {{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 480ms var(--ease);
+}}
+.poster-card:hover .poster-art img {{ transform: scale(1.06); }}
+.poster-placeholder {{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+}}
+.poster-meta {{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.55rem 0.1rem 0;
 }}
 .movie-title-card {{
-  display: -webkit-box; overflow: hidden; color: var(--text-primary);
-  font-size: 0.88rem; font-weight: 650; line-height: 1.25rem;
-  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.2rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }}
-.movie-rating {{ flex: 0 0 auto; color: var(--rating); font-size: 0.82rem; font-weight: 750; white-space: nowrap; }}
-.detail-rating {{
-  display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0 0.85rem;
-  padding: 0.35rem 0.65rem; border: 1px solid rgba(244, 185, 66, 0.25);
-  border-radius: 999px; background: rgba(244, 185, 66, 0.1);
-  color: var(--rating); font-size: 0.9rem; font-weight: 750;
+.movie-rating {{
+  flex: 0 0 auto;
+  color: var(--rating);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
 }}
-.poster-placeholder {{
-  display: grid; place-items: center; aspect-ratio: 2 / 3;
-  border-radius: 0.7rem; background: var(--surface-elevated); color: var(--text-muted);
+.detail-hero {{
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  min-height: 420px;
+  margin: 0.4rem 0 1.4rem;
+  background: #0b0b0d center/cover no-repeat;
+  background-image: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.88)), var(--hero-bg);
 }}
-[data-testid="stAlert"] {{ border-radius: 0.85rem; }}
-.section-heading {{ margin: 1.5rem 0 0.8rem; }}
-.section-kicker {{ color: var(--text-muted); font-size: 0.85rem; margin-top: -0.35rem; }}
-.hero-copy {{ margin: 0.15rem 0 0.8rem; }}
-.toolbar-container {{ margin-bottom: 1.5rem; }}
-.pagination-status {{ color: var(--text-muted); text-align: center; padding-top: 0.55rem; }}
-@media (max-width: 700px) {{
-  .block-container {{ padding: 1rem 1rem 2rem; }}
+.detail-hero-inner {{
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.6rem;
+  padding: 1.6rem;
+  align-items: end;
+}}
+.detail-poster-wrap {{
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
+}}
+.detail-poster-wrap img {{ width: 100%; display: block; }}
+.detail-copy h1 {{
+  margin: 0.15rem 0 0.75rem;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1.05;
+  color: #fff;
+}}
+.eyebrow {{
+  margin: 0;
+  color: rgba(255,255,255,0.62);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}}
+.meta-row {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}}
+.chip {{
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+}}
+.chip.rating {{ color: var(--rating); background: rgba(255, 214, 10, 0.14); }}
+.overview {{
+  max-width: 62ch;
+  color: rgba(255,255,255,0.82);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  margin: 0;
+}}
+@media (max-width: 800px) {{
+  .block-container {{ padding: 0.9rem 0.9rem 2.4rem; }}
   .brand-caption {{ display: none; }}
-  .brand-name {{ font-size: 1.02rem; }}
-  .section-heading {{ margin-top: 1rem; }}
-  [data-testid="stHorizontalBlock"]:has(.movie-card-meta) {{
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }}
-  [data-testid="stHorizontalBlock"]:has(.movie-card-meta) > [data-testid="column"] {{
-    width: auto !important;
-    min-width: 0 !important;
-    flex: initial !important;
-  }}
+  .poster-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .detail-hero-inner {{ grid-template-columns: 1fr; }}
+  .detail-poster-wrap {{ max-width: 220px; }}
 }}
 @media (prefers-reduced-motion: reduce) {{
-  *, *::before, *::after {{ scroll-behavior: auto !important; transition-duration: 0.01ms !important; }}
+  *, *::before, *::after {{
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }}
 }}
 </style>
 """,
@@ -244,55 +419,45 @@ def api_get_json(path: str, params: dict | None = None):
         return None, f"Invalid JSON response: {e}"
 
 
-def poster_grid(cards, cols=6, key_prefix="grid"):
+def poster_grid(cards, cols=6, key_prefix="grid", layout="grid"):
     if not cards:
         st.info("No movies to show.")
         return
 
-    rows = (len(cards) + cols - 1) // cols
-    idx = 0
-    for r in range(rows):
-        colset = st.columns(cols)
-        for c in range(cols):
-            if idx >= len(cards):
-                break
-            m = cards[idx]
-            idx += 1
+    items = []
+    for m in cards:
+        tmdb_id = m.get("tmdb_id")
+        title = html.escape(str(m.get("title", "Untitled")))
+        poster = m.get("poster_url")
+        rating = m.get("vote_average")
+        try:
+            rating_label = f"★ {float(rating):.1f}" if rating is not None else ""
+        except (TypeError, ValueError):
+            rating_label = ""
 
-            tmdb_id = m.get("tmdb_id")
-            title = m.get("title", "Untitled")
-            poster = m.get("poster_url")
-            rating = m.get("vote_average")
-            try:
-                rating_label = f"★ {float(rating):.1f}" if rating is not None else ""
-            except (TypeError, ValueError):
-                rating_label = ""
+        href = f"?view=details&id={int(tmdb_id)}" if tmdb_id else "#"
+        if poster:
+            art = (
+                f'<img src="{html.escape(str(poster), quote=True)}" alt="{title}" />'
+            )
+        else:
+            art = '<div class="poster-placeholder">🎬</div>'
 
-            with colset[c]:
-                with st.container(border=True):
-                    if poster:
-                        st.image(poster, use_column_width=True)
-                    else:
-                        st.markdown(
-                            "<div class='poster-placeholder'>🎬<br>No poster</div>",
-                            unsafe_allow_html=True,
-                        )
+        items.append(
+            f'<a class="poster-card" href="{href}" title="{title}">'
+            f'<div class="poster-art">{art}</div>'
+            f'<div class="poster-meta"><span class="movie-title-card">{title}</span>'
+            f'<span class="movie-rating">{rating_label}</span></div></a>'
+        )
 
-                    st.markdown(
-                        "<div class='movie-card-meta'>"
-                        f"<span class='movie-title-card'>{html.escape(str(title))}</span>"
-                        f"<span class='movie-rating'>{rating_label}</span>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-
-                    if st.button(
-                        "View details",
-                        key=f"{key_prefix}_{r}_{c}_{idx}_{tmdb_id}",
-                        use_container_width=True,
-                    ):
-                        if tmdb_id:
-                            goto_details(tmdb_id)
+    if layout == "rail":
+        markup = f'<div class="poster-rail">{"".join(items)}</div>'
+    else:
+        markup = (
+            f'<div class="poster-grid" style="--cols:{int(cols)}">'
+            f'{"".join(items)}</div>'
+        )
+    st.markdown(markup, unsafe_allow_html=True)
 
 
 def to_cards_from_tfidf_items(tfidf_items):
@@ -426,7 +591,7 @@ with st.container(border=True):
         st.markdown(
             "<div class='app-toolbar'><span class='brand-mark'>🎬</span>"
             "<span class='brand-name'>ReelGood</span></div>"
-            "<span class='brand-caption'>Discover your next favorite</span>",
+            "<span class='brand-caption'>Cinematic picks, made personal</span>",
             unsafe_allow_html=True,
         )
     with toolbar_theme:
@@ -461,7 +626,7 @@ with st.sidebar:
 # HEADER
 # =============================
 st.markdown(
-    "<div class='small-muted hero-copy'>A handpicked cinema experience, powered by TMDB.</div>",
+    "<div class='small-muted hero-copy'>Swipe through what’s on, tap a poster, and find your next watch.</div>",
     unsafe_allow_html=True,
 )
 
@@ -498,24 +663,23 @@ if st.session_state.view == "home":
             if err or data is None:
                 st.error(f"Search failed: {err}")
             else:
-                suggestions, cards = parse_tmdb_search_to_cards(
+                _, cards = parse_tmdb_search_to_cards(
                     data, limit=24
                 )
-
-                # Dropdown
-                if suggestions:
-                    labels = ["-- Select a movie --"] + [s[0] for s in suggestions]
-                    selected = st.selectbox("Suggestions", labels, index=0)
-
-                    if selected != "-- Select a movie --":
-                        # map label -> id
-                        label_to_id = {s[0]: s[1] for s in suggestions}
-                        goto_details(label_to_id[selected])
+                if not cards:
+                    st.info("No movies matched that search. Try another title.")
                 else:
-                    st.info("No suggestions found. Try another keyword.")
-
-                st.markdown("<h3 class='section-heading'>Search results</h3>", unsafe_allow_html=True)
-                poster_grid(cards, cols=grid_cols, key_prefix="search_results")
+                    st.markdown(
+                        "<h3 class='section-heading'>Search results</h3>"
+                        "<div class='section-kicker'>Tap a poster to open the film.</div>",
+                        unsafe_allow_html=True,
+                    )
+                    poster_grid(
+                        cards,
+                        cols=grid_cols,
+                        key_prefix="search_results",
+                        layout="grid",
+                    )
                 page_controls(
                     page=int(data.get("page", st.session_state.search_page)),
                     total_pages=min(int(data.get("total_pages", 1)), 500),
@@ -545,7 +709,7 @@ if st.session_state.view == "home":
         st.error(f"Home feed failed: {err or 'Unknown error'}")
         st.stop()
 
-    poster_grid(home_cards.get("results", []), cols=grid_cols, key_prefix="home_feed")
+    poster_grid(home_cards.get("results", []), cols=grid_cols, key_prefix="home_feed", layout="grid")
     page_controls(
         page=int(home_cards.get("page", st.session_state.home_page)),
         total_pages=int(home_cards.get("total_pages", 1)),
@@ -564,7 +728,7 @@ elif st.session_state.view == "details":
             goto_home()
         st.stop()
 
-    if st.button("← Back to movies", key="details_back"):
+    if st.button("‹ Movies", key="details_back"):
         goto_home()
 
     # Details (your FastAPI safe route)
@@ -573,50 +737,48 @@ elif st.session_state.view == "details":
         st.error(f"Could not load details: {err or 'Unknown error'}")
         st.stop()
 
-    # Layout: Poster LEFT, Details RIGHT
-    left, right = st.columns([1, 2.4], gap="large")
-
-    with left:
-        with st.container(border=True):
-            if data.get("poster_url"):
-                st.image(data["poster_url"], use_column_width=True)
-            else:
-                st.markdown(
-                    "<div class='poster-placeholder'>🎬<br>No poster</div>",
-                    unsafe_allow_html=True,
-                )
-
-    with right:
-        with st.container(border=True):
-            st.markdown(f"## {html.escape(data.get('title', ''))}")
-            rating = data.get("vote_average")
-            if rating is not None:
-                st.markdown(
-                    f"<span class='detail-rating'>★ {float(rating):.1f}"
-                    "<span class='small-muted'>/ 10</span></span>",
-                    unsafe_allow_html=True,
-                )
-            release = data.get("release_date") or "-"
-            genres = ", ".join([g["name"] for g in data.get("genres", [])]) or "-"
-            st.markdown(
-                f"<div class='small-muted'>Release: {html.escape(release)}</div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f"<div class='small-muted'>Genres: {html.escape(genres)}</div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
-            st.markdown("### Overview")
-            st.write(data.get("overview") or "No overview available.")
-
-    if data.get("backdrop_url"):
-        st.markdown("#### Backdrop")
-        st.image(data["backdrop_url"], use_column_width=True)
+    title_text = html.escape(data.get("title") or "Untitled")
+    overview = html.escape(data.get("overview") or "No overview available.")
+    release = html.escape(data.get("release_date") or "—")
+    genres = html.escape(
+        ", ".join([g["name"] for g in data.get("genres", [])]) or "—"
+    )
+    backdrop = html.escape(str(data.get("backdrop_url") or ""), quote=True)
+    poster = data.get("poster_url")
+    if poster:
+        poster_html = (
+            f'<img src="{html.escape(str(poster), quote=True)}" alt="{title_text}" />'
+        )
+    else:
+        poster_html = '<div class="poster-placeholder">🎬</div>'
+    rating = data.get("vote_average")
+    try:
+        rating_chip = (
+            f'<span class="chip rating">★ {float(rating):.1f}</span>'
+            if rating is not None
+            else ""
+        )
+    except (TypeError, ValueError):
+        rating_chip = ""
 
     st.markdown(
-        "<h2 class='section-heading'>Recommendations</h2>"
-        "<div class='section-kicker'>More films selected for your next movie night.</div>",
+        f'<div class="detail-hero" style="--hero-bg: url(\'{backdrop}\')">'
+        f'<div class="detail-hero-inner">'
+        f'<div class="detail-poster-wrap">{poster_html}</div>'
+        f'<div class="detail-copy">'
+        f'<p class="eyebrow">Featured title</p>'
+        f"<h1>{title_text}</h1>"
+        f'<div class="meta-row">{rating_chip}'
+        f'<span class="chip">{release}</span>'
+        f'<span class="chip">{genres}</span></div>'
+        f'<p class="overview">{overview}</p>'
+        f"</div></div></div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "<h2 class='section-heading'>Because you picked this</h2>"
+        "<div class='section-kicker'>Swipe the rows, tap a poster.</div>",
         unsafe_allow_html=True,
     )
 
@@ -637,6 +799,7 @@ elif st.session_state.view == "details":
                     tfidf_cards,
                     cols=grid_cols,
                     key_prefix="details_tfidf",
+                    layout="rail",
                 )
             unlinked_items = [
                 item
@@ -660,6 +823,7 @@ elif st.session_state.view == "details":
                     genre_recs,
                     cols=grid_cols,
                     key_prefix="details_genre",
+                    layout="rail",
                 )
             elif bundle.get("genre_error"):
                 st.warning(bundle["genre_error"])
@@ -689,7 +853,10 @@ elif st.session_state.view == "details":
             )
             if not err3 and genre_only:
                 poster_grid(
-                    genre_only, cols=grid_cols, key_prefix="details_genre_fallback"
+                    genre_only,
+                    cols=grid_cols,
+                    key_prefix="details_genre_fallback",
+                    layout="rail",
                 )
             else:
                 st.warning("No recommendations available right now.")
